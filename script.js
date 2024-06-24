@@ -1,5 +1,6 @@
 "use strict";
-console.log("test");
+
+const testMode = false;
 
 const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
@@ -7,7 +8,7 @@ const ctx = canvas.getContext("2d");
 const ballRadius = 10;
 
 const paddleHeight = 10;
-const paddleWidth = 75;
+const paddleWidth = testMode ? canvas.width : 75;
 
 //left edge of paddle
 let paddleX = (canvas.width - paddleWidth) / 2;
@@ -21,6 +22,9 @@ let y = canvas.height - 30;
 let dx = 2;
 let dy = -2;
 
+let score = 0;
+let lives = 3;
+
 const brickRowCount = 3;
 const brickColumnCount = 5;
 const brickWidth = 75;
@@ -33,22 +37,24 @@ const bricks = [];
 for (let c = 0; c < brickColumnCount; c++) {
   bricks[c] = [];
   for (let r = 0; r < brickRowCount; r++) {
-    bricks[c][r] = { x: 0, y: 0 };
+    bricks[c][r] = { x: 0, y: 0, status: 1 };
   }
 }
 
 function drawBricks() {
   for (let c = 0; c < brickColumnCount; c++) {
     for (let r = 0; r < brickRowCount; r++) {
-      const brickX = brickOffsetLeft + c * (brickWidth + brickPadding);
-      const brickY = brickOffsetTop + r * (brickHeight + brickPadding);
-      bricks[c][r].x = brickX;
-      bricks[c][r].y = brickY;
-      ctx.beginPath();
-      ctx.rect(brickX, brickY, brickWidth, brickHeight);
-      ctx.fillStyle = "#0095DD";
-      ctx.fill();
-      ctx.closePath();
+      if (bricks[c][r].status === 1) {
+        const brickX = brickOffsetLeft + c * (brickWidth + brickPadding);
+        const brickY = brickOffsetTop + r * (brickHeight + brickPadding);
+        bricks[c][r].x = brickX;
+        bricks[c][r].y = brickY;
+        ctx.beginPath();
+        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+        ctx.fillStyle = "#0095DD";
+        ctx.fill();
+        ctx.closePath();
+      }
     }
   }
 }
@@ -58,8 +64,9 @@ function draw() {
   drawBricks();
   drawBall();
   drawPaddle();
-
-  console.log("x=" + x + " y=" + y + " dx=" + dx + " dy=" + dy);
+  drawScore();
+  drawLives();
+  collisionDetection();
 
   if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
     dx = -dx;
@@ -69,10 +76,18 @@ function draw() {
   } else if (y + dy > canvas.height - ballRadius) {
     if (x > paddleX && x < paddleX + paddleWidth) {
       dy = -dy;
+    } else if (lives >= 1) {
+      lives--;
+      alert(`REMAINING ${lives} life...`);
+      x = canvas.width / 2;
+      y = canvas.height - 30;
+      dx = 2;
+      dy = -2;
+      paddleX = (canvas.width - paddleWidth) / 2;
     } else {
-      alert("GAME OVER");
+      alert(`GAME OVER`);
       document.location.reload();
-      clearInterval(interval);
+      // clearInterval(interval);
     }
   }
 
@@ -84,6 +99,8 @@ function draw() {
   } else if (leftPressed) {
     paddleX = Math.max(paddleX - 7, 0);
   }
+
+  requestAnimationFrame(draw);
 }
 
 function drawPaddle() {
@@ -104,6 +121,7 @@ function drawBall() {
 
 document.addEventListener("keydown", keyDownHandler, false);
 document.addEventListener("keyup", keyUpHandler, false);
+document.addEventListener("mousemove", mouseMoveHandler, false);
 
 function keyDownHandler(e) {
   if (e.key === "Right" || e.key === "ArrowRight") {
@@ -121,4 +139,49 @@ function keyUpHandler(e) {
   }
 }
 
-const interval = setInterval(draw, 10);
+function mouseMoveHandler(e) {
+  const relativeX = e.clientX - canvas.offsetLeft;
+  if (relativeX > 0 && relativeX < canvas.width) {
+    paddleX = relativeX - paddleWidth / 2;
+  }
+}
+
+function collisionDetection() {
+  for (let c = 0; c < brickColumnCount; c++) {
+    for (let r = 0; r < brickRowCount; r++) {
+      const b = bricks[c][r];
+      if (b.status === 1) {
+        if (
+          x > b.x &&
+          x < b.x + brickWidth &&
+          y > b.y &&
+          y < b.y + brickHeight
+        ) {
+          dy = -dy;
+          b.status = 0;
+          score++;
+          if (score === brickRowCount * brickColumnCount) {
+            alert("YOU WIN, CONGRATULATIONS!");
+            document.location.reload();
+            // clearInterval(interval);
+          }
+        } else {
+        }
+      }
+    }
+  }
+}
+
+function drawScore() {
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "0095DD";
+  ctx.fillText(`Score: ${score}`, 8, 20);
+}
+
+function drawLives() {
+  ctx.font = "16px Arial";
+  ctx.fillStyle = "#0095DD";
+  ctx.fillText(`Lives: ${lives}`, canvas.width - 65, 20);
+}
+
+draw();
